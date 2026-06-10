@@ -14,7 +14,7 @@
   TrelloPowerUp.initialize({
     'card-back-section': function(t) {
       return {
-        title: 'Checklist+ Timer',
+        title: '✅ Checklist+ Timer',
         icon: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/icons/check2-square.svg',
         content: {
           type: 'iframe',
@@ -46,20 +46,22 @@
         var badges = [];
         if (totalItems > 0) {
           badges.push({
-            text: checkedItems + '/' + totalItems,
-            color: checkedItems === totalItems ? 'green' : 'light-gray',
-            icon: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/icons/check2-square.svg'
+            text: '☑ ' + checkedItems + '/' + totalItems,
+            color: checkedItems === totalItems ? 'green' : 'light-gray'
           });
         }
         if (totalTime > 0) {
           var h = Math.floor(totalTime / 3600);
           var m = Math.floor((totalTime % 3600) / 60);
+          var s = totalTime % 60;
           badges.push({
-            text: (h > 0 ? h + 'h ' : '') + m + 'm',
+            text: '⏱ ' + (h > 0 ? h + ':' + pad(m) : pad(m)) + ':' + pad(s),
             color: 'light-gray'
           });
         }
         return badges;
+
+        function pad(n) { return n < 10 ? '0' + n : '' + n; }
       });
     }
   });
