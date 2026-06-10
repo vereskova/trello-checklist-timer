@@ -15,13 +15,13 @@
       padding: 8px 12px 16px;
     }
 
-    /* ── Заголовок чеклиста ── */
     .checklist {
       margin-bottom: 16px;
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       overflow: hidden;
     }
+
     .checklist-header {
       display: flex;
       align-items: center;
@@ -30,6 +30,7 @@
       padding: 8px 10px;
       font-weight: 600;
     }
+
     .checklist-header input.cl-name {
       flex: 1;
       border: none;
@@ -39,6 +40,7 @@
       color: #172b4d;
       outline: none;
     }
+
     .btn-icon {
       background: none;
       border: none;
@@ -49,20 +51,20 @@
       font-size: 15px;
       line-height: 1;
     }
+
     .btn-icon:hover { background: #dfe1e6; color: #172b4d; }
 
-    /* ── Прогресс-бар ── */
     .progress-bar-wrap {
       height: 4px;
       background: #dfe1e6;
     }
+
     .progress-bar-fill {
       height: 4px;
       background: #0052cc;
       transition: width 0.3s;
     }
 
-    /* ── Пункты ── */
     .items { padding: 4px 0; }
 
     .item-row {
@@ -71,6 +73,7 @@
       gap: 6px;
       padding: 5px 10px;
     }
+
     .item-row:hover { background: #f4f5f7; }
 
     .item-row input[type="checkbox"] {
@@ -91,15 +94,19 @@
       font-family: inherit;
       line-height: 1.4;
     }
-    .item-text.checked-text { text-decoration: line-through; color: #a5adba; }
 
-    /* ── Таймер ── */
+    .item-text.checked-text {
+      text-decoration: line-through;
+      color: #a5adba;
+    }
+
     .timer-wrap {
       display: flex;
       align-items: center;
       gap: 4px;
       flex-shrink: 0;
     }
+
     .timer-display {
       font-size: 11px;
       color: #6b778c;
@@ -107,7 +114,12 @@
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
-    .timer-display.running { color: #0052cc; font-weight: 600; }
+
+    .timer-display.running {
+      color: #0052cc;
+      font-weight: 600;
+    }
+
     .btn-timer {
       border: none;
       border-radius: 4px;
@@ -116,29 +128,31 @@
       cursor: pointer;
       line-height: 1.4;
     }
+
     .btn-timer.start { background: #e3fcef; color: #006644; }
     .btn-timer.stop  { background: #ffebe6; color: #bf2600; }
     .btn-timer:hover { opacity: 0.8; }
 
-    /* ── Подпункты ── */
     .subitems {
       margin-left: 28px;
       border-left: 2px solid #dfe1e6;
       margin-right: 10px;
       border-radius: 0 0 0 4px;
     }
+
     .subitem-row {
       display: flex;
       align-items: flex-start;
       gap: 6px;
       padding: 4px 8px;
     }
+
     .subitem-row:hover { background: #f8f9fa; }
 
-    /* ── Кнопки добавления ── */
     .add-row {
       padding: 4px 10px 6px;
     }
+
     .btn-add {
       background: none;
       border: none;
@@ -148,12 +162,13 @@
       padding: 3px 6px;
       border-radius: 4px;
     }
+
     .btn-add:hover { background: #deebff; }
 
-    /* ── Нижняя кнопка ── */
     .add-checklist-wrap {
       margin-top: 8px;
     }
+
     .btn-add-checklist {
       background: #0052cc;
       color: #fff;
@@ -164,14 +179,14 @@
       cursor: pointer;
       font-weight: 500;
     }
-    .btn-add-checklist:hover { background: #0065ff; }
 
-    .divider { height: 1px; background: #e0e0e0; margin: 2px 0; }
+    .btn-add-checklist:hover { background: #0065ff; }
   </style>
 </head>
 <body>
 
 <div id="app"></div>
+
 <div class="add-checklist-wrap">
   <button class="btn-add-checklist" onclick="addChecklist()">+ Добавить чеклист</button>
 </div>
@@ -181,7 +196,6 @@ var t = TrelloPowerUp.iframe();
 var checklists = [];
 var timerTick = null;
 
-// ── Загрузка данных ──────────────────────────────────────────
 t.get('card', 'shared', 'checklists', []).then(function(data) {
   checklists = data || [];
   render();
@@ -189,48 +203,78 @@ t.get('card', 'shared', 'checklists', []).then(function(data) {
 });
 
 function save() {
-  t.set('card', 'shared', 'checklists', checklists);
+  return t.set('card', 'shared', 'checklists', checklists)
+    .then(function() {
+      return t.notifyParent('done');
+    })
+    .catch(function(err) {
+      console.error('Save error:', err);
+    });
 }
 
-// ── Тик каждую секунду для бегущих таймеров ─────────────────
 function startTick() {
+  if (timerTick) clearInterval(timerTick);
+
   timerTick = setInterval(function() {
-    var running = false;
+    var hasRunningTimer = false;
+
     checklists.forEach(function(cl) {
       (cl.items || []).forEach(function(item) {
-        if (item.timerStart) { running = true; updateTimerDisplay(item.id); }
+        if (item.timerStart) {
+          hasRunningTimer = true;
+          updateTimerDisplay(item.id);
+        }
+
         (item.subitems || []).forEach(function(sub) {
-          if (sub.timerStart) { running = true; updateTimerDisplay(sub.id); }
+          if (sub.timerStart) {
+            hasRunningTimer = true;
+            updateTimerDisplay(sub.id);
+          }
         });
       });
     });
+
+    if (hasRunningTimer) {
+      t.notifyParent('done').catch(function() {});
+    }
   }, 1000);
 }
 
 function updateTimerDisplay(id) {
   var item = findItem(id);
   if (!item) return;
+
   var el = document.getElementById('timer-' + id);
-  if (el) { el.textContent = formatTime(getElapsed(item)); el.className = 'timer-display' + (item.timerStart ? ' running' : ''); }
+
+  if (el) {
+    el.textContent = formatTime(getElapsed(item));
+    el.className = 'timer-display' + (item.timerStart ? ' running' : '');
+  }
 }
 
 function findItem(id) {
   for (var i = 0; i < checklists.length; i++) {
     var cl = checklists[i];
+
     for (var j = 0; j < (cl.items || []).length; j++) {
       if (cl.items[j].id === id) return cl.items[j];
+
       for (var k = 0; k < (cl.items[j].subitems || []).length; k++) {
         if (cl.items[j].subitems[k].id === id) return cl.items[j].subitems[k];
       }
     }
   }
+
   return null;
 }
 
-// ── Таймер ───────────────────────────────────────────────────
 function getElapsed(item) {
   var total = item.timerTotal || 0;
-  if (item.timerStart) { total += Math.floor((Date.now() - item.timerStart) / 1000); }
+
+  if (item.timerStart) {
+    total += Math.floor((Date.now() - item.timerStart) / 1000);
+  }
+
   return total;
 }
 
@@ -238,21 +282,26 @@ function formatTime(secs) {
   var h = Math.floor(secs / 3600);
   var m = Math.floor((secs % 3600) / 60);
   var s = secs % 60;
+
   if (h > 0) return h + ':' + pad(m) + ':' + pad(s);
   return pad(m) + ':' + pad(s);
 }
 
-function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function pad(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
 
 function toggleTimer(id) {
   var item = findItem(id);
   if (!item) return;
+
   if (item.timerStart) {
     item.timerTotal = getElapsed(item);
     item.timerStart = null;
   } else {
     item.timerStart = Date.now();
   }
+
   save();
   render();
 }
@@ -260,91 +309,170 @@ function toggleTimer(id) {
 function resetTimer(id) {
   var item = findItem(id);
   if (!item) return;
+
   item.timerTotal = 0;
   item.timerStart = null;
+
   save();
   render();
 }
 
-// ── UUID ─────────────────────────────────────────────────────
 function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-// ── Мутации данных ───────────────────────────────────────────
 function addChecklist() {
-  checklists.push({ id: uid(), name: 'Новый чеклист', items: [] });
-  save(); render();
+  checklists.push({
+    id: uid(),
+    name: 'Новый чеклист',
+    items: []
+  });
+
+  save();
+  render();
 }
 
 function removeChecklist(clId) {
-  checklists = checklists.filter(function(c) { return c.id !== clId; });
-  save(); render();
+  checklists = checklists.filter(function(c) {
+    return c.id !== clId;
+  });
+
+  save();
+  render();
 }
 
 function addItem(clId) {
-  var cl = checklists.find(function(c) { return c.id === clId; });
+  var cl = checklists.find(function(c) {
+    return c.id === clId;
+  });
+
   if (!cl) return;
-  cl.items.push({ id: uid(), text: '', checked: false, timerTotal: 0, timerStart: null, subitems: [] });
-  save(); render();
+
+  cl.items.push({
+    id: uid(),
+    text: '',
+    checked: false,
+    timerTotal: 0,
+    timerStart: null,
+    subitems: []
+  });
+
+  save();
+  render();
 }
 
 function removeItem(clId, itemId) {
-  var cl = checklists.find(function(c) { return c.id === clId; });
+  var cl = checklists.find(function(c) {
+    return c.id === clId;
+  });
+
   if (!cl) return;
-  cl.items = cl.items.filter(function(i) { return i.id !== itemId; });
-  save(); render();
+
+  cl.items = cl.items.filter(function(i) {
+    return i.id !== itemId;
+  });
+
+  save();
+  render();
 }
 
 function addSubitem(clId, itemId) {
-  var cl = checklists.find(function(c) { return c.id === clId; });
+  var cl = checklists.find(function(c) {
+    return c.id === clId;
+  });
+
   if (!cl) return;
-  var item = cl.items.find(function(i) { return i.id === itemId; });
+
+  var item = cl.items.find(function(i) {
+    return i.id === itemId;
+  });
+
   if (!item) return;
-  item.subitems.push({ id: uid(), text: '', checked: false, timerTotal: 0, timerStart: null });
-  save(); render();
+
+  item.subitems.push({
+    id: uid(),
+    text: '',
+    checked: false,
+    timerTotal: 0,
+    timerStart: null
+  });
+
+  save();
+  render();
 }
 
 function removeSubitem(clId, itemId, subId) {
-  var cl = checklists.find(function(c) { return c.id === clId; });
+  var cl = checklists.find(function(c) {
+    return c.id === clId;
+  });
+
   if (!cl) return;
-  var item = cl.items.find(function(i) { return i.id === itemId; });
+
+  var item = cl.items.find(function(i) {
+    return i.id === itemId;
+  });
+
   if (!item) return;
-  item.subitems = item.subitems.filter(function(s) { return s.id !== subId; });
-  save(); render();
+
+  item.subitems = item.subitems.filter(function(s) {
+    return s.id !== subId;
+  });
+
+  save();
+  render();
 }
 
-function toggleCheck(id, isSub) {
+function toggleCheck(id) {
   var item = findItem(id);
-  if (item) { item.checked = !item.checked; save(); render(); }
+
+  if (item) {
+    item.checked = !item.checked;
+    save();
+    render();
+  }
 }
 
 function updateName(clId, val) {
-  var cl = checklists.find(function(c) { return c.id === clId; });
-  if (cl) { cl.name = val; save(); }
+  var cl = checklists.find(function(c) {
+    return c.id === clId;
+  });
+
+  if (cl) {
+    cl.name = val;
+    save();
+  }
 }
 
 function updateItemText(id, val) {
   var item = findItem(id);
-  if (item) { item.text = val; save(); }
+
+  if (item) {
+    item.text = val;
+    save();
+  }
 }
 
-// ── Прогресс ─────────────────────────────────────────────────
 function progress(cl) {
-  var total = 0, done = 0;
+  var total = 0;
+  var done = 0;
+
   (cl.items || []).forEach(function(item) {
-    total++; if (item.checked) done++;
+    total++;
+    if (item.checked) done++;
+
     (item.subitems || []).forEach(function(sub) {
-      total++; if (sub.checked) done++;
+      total++;
+      if (sub.checked) done++;
     });
   });
+
   return total === 0 ? 0 : Math.round(done / total * 100);
 }
 
-// ── Рендер ───────────────────────────────────────────────────
 function timerBlock(item) {
   var elapsed = getElapsed(item);
   var running = !!item.timerStart;
+
   return '<div class="timer-wrap">' +
     '<span id="timer-' + item.id + '" class="timer-display' + (running ? ' running' : '') + '">' + formatTime(elapsed) + '</span>' +
     '<button class="btn-timer ' + (running ? 'stop' : 'start') + '" onclick="toggleTimer(\'' + item.id + '\')">' + (running ? '⏹' : '▶') + '</button>' +
@@ -363,11 +491,15 @@ function renderSubitem(clId, itemId, sub) {
 
 function renderItem(clId, item) {
   var subsHtml = '';
+
   if (item.subitems && item.subitems.length > 0) {
     subsHtml = '<div class="subitems">' +
-      item.subitems.map(function(sub) { return renderSubitem(clId, item.id, sub); }).join('') +
+      item.subitems.map(function(sub) {
+        return renderSubitem(clId, item.id, sub);
+      }).join('') +
     '</div>';
   }
+
   return '<div id="itemrow-' + item.id + '">' +
     '<div class="item-row">' +
       '<input type="checkbox"' + (item.checked ? ' checked' : '') + ' onchange="toggleCheck(\'' + item.id + '\')">' +
@@ -384,6 +516,7 @@ function renderItem(clId, item) {
 
 function renderChecklist(cl) {
   var pct = progress(cl);
+
   return '<div class="checklist" id="cl-' + cl.id + '">' +
     '<div class="checklist-header">' +
       '☰ <input class="cl-name" value="' + escHtml(cl.name) + '" oninput="updateName(\'' + cl.id + '\',this.value)">' +
@@ -392,7 +525,9 @@ function renderChecklist(cl) {
     '</div>' +
     '<div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
     '<div class="items">' +
-      (cl.items || []).map(function(item) { return renderItem(cl.id, item); }).join('') +
+      (cl.items || []).map(function(item) {
+        return renderItem(cl.id, item);
+      }).join('') +
     '</div>' +
     '<div class="add-row"><button class="btn-add" onclick="addItem(\'' + cl.id + '\')">＋ задача</button></div>' +
   '</div>';
@@ -400,11 +535,16 @@ function renderChecklist(cl) {
 
 function render() {
   document.getElementById('app').innerHTML = checklists.map(renderChecklist).join('');
-  t.sizeTo('#app').catch(function() {});
+
+  t.sizeTo('body').catch(function() {});
 }
 
 function escHtml(str) {
-  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 </script>
 </body>
