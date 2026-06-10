@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+<script>
+  var t = TrelloPowerUp.iframe({
+    appKey: 'YOUR_TRELLO_API_KEY', // замените на ваш ключ
+    appName: 'Checklist+ Timer'
+  });
+
+  TrelloPowerUp.initialize({
+    'card-back-section': function(t) {
+      return {
+        title: '✅ Checklist+ Timer',
+        icon: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/icons/check2-square.svg',
+        content: {
+          type: 'iframe',
+          url: t.signUrl('./card-back.html'),
+          height: 600
+        }
+      };
+    },
+
+    'card-badges': function(t) {
+      return t.get('card', 'shared', 'checklists', []).then(function(checklists) {
+        var totalItems = 0;
+        var checkedItems = 0;
+        var totalTime = 0;
+
+        checklists.forEach(function(cl) {
+          (cl.items || []).forEach(function(item) {
+            totalItems++;
+            if (item.checked) checkedItems++;
+            totalTime += item.timerTotal || 0;
+            (item.subitems || []).forEach(function(sub) {
+              totalItems++;
+              if (sub.checked) checkedItems++;
+              totalTime += sub.timerTotal || 0;
+            });
+          });
+        });
+
+        var badges = [];
+        if (totalItems > 0) {
+          badges.push({
+            text: checkedItems + '/' + totalItems,
+            color: checkedItems === totalItems ? 'green' : 'light-gray',
+            icon: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/icons/check2-square.svg'
+          });
+        }
+        if (totalTime > 0) {
+          var h = Math.floor(totalTime / 3600);
+          var m = Math.floor((totalTime % 3600) / 60);
+          badges.push({
+            text: (h > 0 ? h + 'h ' : '') + m + 'm',
+            color: 'light-gray'
+          });
+        }
+        return badges;
+      });
+    }
+  });
+</script>
+</body>
+</html>
